@@ -113,7 +113,7 @@ struct UIState {
 
 #include <ctime> // Thư viện dùng để lấy và thao tác với thời gian hệ thống
 
-// Hàm kiểm tra tính hợp lệ của ngày tháng năm, đồng thời chặn lập hóa đơn trong tương lai
+// Hàm kiểm tra tính hợp lệ của ngày tháng năm theo lịch pháp (không kiểm tra tương lai)
 bool isValidDate(int d, int m, int y) {
     // 1. Kiểm tra tính hợp lệ của năm và tháng theo lịch pháp
     if (y < 1900 || y > 2100) return false;
@@ -130,7 +130,11 @@ bool isValidDate(int d, int m, int y) {
     // Kiểm tra xem ngày nhập vào có nằm trong phạm vi số ngày hợp lệ của tháng đó không
     if (d < 1 || d > daysInMonth[m - 1]) return false;
     
-    // 3. Nghiệp vụ: Lấy ngày, tháng, năm hiện tại của hệ thống máy tính để kiểm tra tương lai
+    return true; // Ngày hợp lệ về lịch pháp
+}
+
+// Hàm kiểm tra xem ngày nhập vào có vượt quá ngày hiện tại của hệ thống máy tính không (kiểm tra ngày tương lai)
+bool isFutureDate(int d, int m, int y) {
     std::time_t t = std::time(nullptr);
     std::tm *now = std::localtime(&t);
     
@@ -139,16 +143,16 @@ bool isValidDate(int d, int m, int y) {
     int currentDay = now->tm_mday;         // tm_mday là ngày hiện tại của tháng
     
     // So sánh ngày nhập với ngày hiện tại:
-    // Nếu năm nhập lớn hơn năm hiện tại -> Lỗi tương lai
-    if (y > currentYear) return false;
+    // Nếu năm nhập lớn hơn năm hiện tại -> Đúng là ngày tương lai
+    if (y > currentYear) return true;
     if (y == currentYear) {
-        // Nếu cùng năm nhưng tháng nhập lớn hơn tháng hiện tại -> Lỗi tương lai
-        if (m > currentMonth) return false;
-        // Nếu cùng năm, cùng tháng nhưng ngày nhập lớn hơn ngày hiện tại -> Lỗi tương lai
-        if (m == currentMonth && d > currentDay) return false;
+        // Nếu cùng năm nhưng tháng nhập lớn hơn tháng hiện tại -> Đúng là ngày tương lai
+        if (m > currentMonth) return true;
+        // Nếu cùng năm, cùng tháng nhưng ngày nhập lớn hơn ngày hiện tại -> Đúng là ngày tương lai
+        if (m == currentMonth && d > currentDay) return true;
     }
     
-    return true; // Ngày hoàn toàn hợp lệ và không nằm trong tương lai
+    return false; // Ngày nhập không phải tương lai (nhỏ hơn hoặc bằng hiện tại)
 }
 
 // ============================================================================
@@ -855,6 +859,11 @@ void drawLapHoaDonScreen(TreeVatTu &t, DanhSachNhanvien &dsnv, UIState &ui) {
                 ui.showDialog = true;
                 strcpy(ui.dialogTitle, "Lỗi Ngày Tháng");
                 strcpy(ui.dialogMsg, "Ngày lập hóa đơn không hợp lệ!");
+            } else if (isFutureDate(d, m, y)) {
+                // Nghiệp vụ: Chỉ chặn ngày tương lai khi lập hóa đơn mới (không chặn khi lọc thống kê)
+                ui.showDialog = true;
+                strcpy(ui.dialogTitle, "Lỗi Ngày Lập");
+                strcpy(ui.dialogMsg, "Không được lập hóa đơn ở tương lai!");
             } else if (strlen(ui.hdLoai) == 0 || (toupper(ui.hdLoai[0]) != 'N' && toupper(ui.hdLoai[0]) != 'X')) {
                 ui.showDialog = true;
                 strcpy(ui.dialogTitle, "Lỗi Loại Hóa Đơn");
@@ -1324,19 +1333,28 @@ void drawThongKeScreen(const DanhSachNhanvien &dsnv, UIState &ui) {
     int endIdx = startIdx + rowsPerPage;
     if (endIdx > totalItems) endIdx = totalItems;
     
-    for (int i = startIdx; i < endIdx; i++) {
-        int rowY = startY + 86 + (i - startIdx) * rowHeight;
-        Rectangle rowRec = { 310, (float)rowY, tableWidth, (float)rowHeight };
-        
-        DrawRectangleRec(rowRec, i % 2 == 0 ? COLOR_CARD : COLOR_BG);
-        DrawRectangleLinesEx(rowRec, 0.5f, COLOR_BORDER);
-        
-        ThongKeHDDong r = ui.tkInvoices[i];
-        DrawTextLimit(r.SoHD, rowRec.x + col1, rowRec.y + 11, 18, COLOR_TEXT_MAIN, col2 - col1 - 5);
-        DrawTextLimit(TextFormat("%02d/%02d/%04d", r.NgayLap.day, r.NgayLap.month, r.NgayLap.year), rowRec.x + col2, rowRec.y + 11, 18, COLOR_TEXT_MAIN, col3 - col2 - 5);
-        DrawTextLimit(r.Loai == 'N' ? "Phiếu Nhập" : "Phiếu Xuất", rowRec.x + col3, rowRec.y + 11, 18, COLOR_TEXT_MAIN, col4 - col3 - 5);
-        DrawTextLimit(r.HoTenNV, rowRec.x + col4, rowRec.y + 11, 18, COLOR_TEXT_MAIN, col5 - col4 - 10);
-        DrawTextLimit(TextFormat("%.0f", r.TriGia), rowRec.x + col5, rowRec.y + 11, 18, COLOR_TEXT_MAIN, tableWidth - col5 - 10);
+    if (totalItems == 0) {
+        // Chú thích nghiệp vụ: Kiểm tra xem người dùng đã thực hiện thao tác Lọc chưa bằng cách kiểm tra xem ô nhập ngày có trống không
+        if (ui.fromDay[0] == '\0' && ui.toDay[0] == '\0') {
+            DrawText("Điền khoảng thời gian ở trên và bấm 'Lọc Thống Kê' để xem báo cáo.", 310 + tableWidth/2 - 300, startY + 110, 20, COLOR_TEXT_MUTED);
+        } else {
+            DrawText("Không có hóa đơn nào phát sinh trong khoảng thời gian này.", 310 + tableWidth/2 - 260, startY + 110, 20, RED);
+        }
+    } else {
+        for (int i = startIdx; i < endIdx; i++) {
+            int rowY = startY + 86 + (i - startIdx) * rowHeight;
+            Rectangle rowRec = { 310, (float)rowY, tableWidth, (float)rowHeight };
+            
+            DrawRectangleRec(rowRec, i % 2 == 0 ? COLOR_CARD : COLOR_BG);
+            DrawRectangleLinesEx(rowRec, 0.5f, COLOR_BORDER);
+            
+            ThongKeHDDong r = ui.tkInvoices[i];
+            DrawTextLimit(r.SoHD, rowRec.x + col1, rowRec.y + 11, 18, COLOR_TEXT_MAIN, col2 - col1 - 5);
+            DrawTextLimit(TextFormat("%02d/%02d/%04d", r.NgayLap.day, r.NgayLap.month, r.NgayLap.year), rowRec.x + col2, rowRec.y + 11, 18, COLOR_TEXT_MAIN, col3 - col2 - 5);
+            DrawTextLimit(r.Loai == 'N' ? "Phiếu Nhập" : "Phiếu Xuất", rowRec.x + col3, rowRec.y + 11, 18, COLOR_TEXT_MAIN, col4 - col3 - 5);
+            DrawTextLimit(r.HoTenNV, rowRec.x + col4, rowRec.y + 11, 18, COLOR_TEXT_MAIN, col5 - col4 - 10);
+            DrawTextLimit(TextFormat("%.0f", r.TriGia), rowRec.x + col5, rowRec.y + 11, 18, COLOR_TEXT_MAIN, tableWidth - col5 - 10);
+        }
     }
     
     float controlsY = startY + 86 + rowsPerPage * rowHeight + 10;
