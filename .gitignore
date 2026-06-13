@@ -1,0 +1,25 @@
+# Biên dịch và thực thi
+*.exe
+*.o
+*.obj
+*.gch
+
+# Trình biên dịch/IDE cấu hình
+.vscode/
+.idea/
+*.layout
+*.depend
+
+# Logs và file tạm thời
+*.log
+error_log.txt
+docx_content.txt
+
+# File tạm thời của MS Office (khi mở Word)
+~$*.docx
+~*
+
+# File dữ liệu chạy thử (tùy chọn: bỏ comment nếu không muốn đẩy dữ liệu local lên)
+# hoadon.txt
+# nhanvien.txt
+# vattu.txt
