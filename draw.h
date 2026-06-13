@@ -111,17 +111,44 @@ struct UIState {
     }
 };
 
-// Hàm kiểm tra tính hợp lệ của ngày tháng năm
+#include <ctime> // Thư viện dùng để lấy và thao tác với thời gian hệ thống
+
+// Hàm kiểm tra tính hợp lệ của ngày tháng năm, đồng thời chặn lập hóa đơn trong tương lai
 bool isValidDate(int d, int m, int y) {
+    // 1. Kiểm tra tính hợp lệ của năm và tháng theo lịch pháp
     if (y < 1900 || y > 2100) return false;
     if (m < 1 || m > 12) return false;
+    
+    // Mảng lưu trữ số ngày tối đa trong từng tháng
     int daysInMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-    // Kiểm tra năm nhuận
+    
+    // 2. Xử lý năm nhuận để cập nhật lại tháng 2 có 29 ngày
     if ((y % 4 == 0 && y % 100 != 0) || (y % 400 == 0)) {
         daysInMonth[1] = 29;
     }
+    
+    // Kiểm tra xem ngày nhập vào có nằm trong phạm vi số ngày hợp lệ của tháng đó không
     if (d < 1 || d > daysInMonth[m - 1]) return false;
-    return true;
+    
+    // 3. Nghiệp vụ: Lấy ngày, tháng, năm hiện tại của hệ thống máy tính để kiểm tra tương lai
+    std::time_t t = std::time(nullptr);
+    std::tm *now = std::localtime(&t);
+    
+    int currentYear = now->tm_year + 1900; // tm_year tính từ mốc năm 1900
+    int currentMonth = now->tm_mon + 1;    // tm_mon chạy từ 0 đến 11 nên cần cộng 1
+    int currentDay = now->tm_mday;         // tm_mday là ngày hiện tại của tháng
+    
+    // So sánh ngày nhập với ngày hiện tại:
+    // Nếu năm nhập lớn hơn năm hiện tại -> Lỗi tương lai
+    if (y > currentYear) return false;
+    if (y == currentYear) {
+        // Nếu cùng năm nhưng tháng nhập lớn hơn tháng hiện tại -> Lỗi tương lai
+        if (m > currentMonth) return false;
+        // Nếu cùng năm, cùng tháng nhưng ngày nhập lớn hơn ngày hiện tại -> Lỗi tương lai
+        if (m == currentMonth && d > currentDay) return false;
+    }
+    
+    return true; // Ngày hoàn toàn hợp lệ và không nằm trong tương lai
 }
 
 // ============================================================================
@@ -847,6 +874,9 @@ void drawLapHoaDonScreen(TreeVatTu &t, DanhSachNhanvien &dsnv, UIState &ui) {
         }
     } else {
         // ---------------- BƯỚC 2: NHẬP VẬT TƯ CHO CHI TIẾT HÓA ĐƠN ----------------
+        
+        // Điều chỉnh vị trí trục Y của form bên phải xuống 160 để không đè lên bảng tóm tắt thông tin hóa đơn ở trên
+        formY = 160;
         
         // Vẽ header tóm tắt
         DrawRectangleRounded({ 310, 70, contentWidth - 60, 75 }, 0.05f, 4, COLOR_CARD);

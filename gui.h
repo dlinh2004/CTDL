@@ -116,7 +116,7 @@ inline int deleteCharBeforeCursor(char* text, int pos) {
 
 inline int insertCharAtCursor(char* text, int maxLen, int pos, const char* utf8Char, int byteSize) {
     int len = strlen(text);
-    if (len + byteSize >= maxLen) return pos;
+    if (len + byteSize > maxLen) return pos;
     memmove(text + pos + byteSize, text + pos, len - pos + 1);
     memcpy(text + pos, utf8Char, byteSize);
     return pos + byteSize;

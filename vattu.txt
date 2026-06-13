@@ -1,12 +1,11 @@
-VT001|Gach ong to|Vien to|500
-VT002|sat phi 10|cay|50
+VT001|Gach ong to|Vien to|550
+VT002|sat phi 10|cay|30
 VT003|Xi mang|bao|0
 VT004|Bong den|cai|0
 VT005|vali|cai|0
 VT006|Vo|cai|0
 VT007|ao|cai|0.1
-VT008|nuoc suoi|chai|150
-VT009|may tinh|cai|20
+VT008|nuoc suoi|chai|170
 VT010|tai nghe|cai|40
 VT011|bong den|cai |200
 VT012|Bong den|cai|20
