@@ -1,5 +1,5 @@
 VT001|Gach ong to|Vien to|550
-VT002|sat phi 10|cay|30
+VT002|sat phi 10|cay|0
 VT003|Xi mang|bao|0
 VT004|Bong den|cai|0
 VT005|vali|cai|0
