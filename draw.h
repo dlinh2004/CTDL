@@ -81,6 +81,8 @@ struct UIState {
     
     // Danh sách các hóa đơn đã lọc theo khoảng thời gian
     std::vector<ThongKeHDDong> tkInvoices;
+    bool hasFilteredTK = false;
+    bool filterOnlyInStock = false;
     
     // Hàm xóa sạch các ô nhập dữ liệu khi chuyển tab hoặc ghi nhận dữ liệu xong
     void resetInputs() {
@@ -108,6 +110,8 @@ struct UIState {
         showInvoiceResult = false;
         
         tkInvoices.clear();
+        hasFilteredTK = false;
+        filterOnlyInStock = false;
     }
 };
 
@@ -402,6 +406,31 @@ void drawVatTuScreen(TreeVatTu &t, const DanhSachNhanvien &dsnv, UIState &ui) {
     int formY = 100;
     
     float tableWidth = formX - 10 - 310;
+    
+    // Áp dụng bộ lọc vật tư tồn kho thực tế nếu cờ filterOnlyInStock = true
+    if (ui.filterOnlyInStock) {
+        int filteredCount = 0;
+        for (int i = 0; i < n; i++) {
+            if (arrVT[i].SoLuongTon > 0.0f) {
+                arrVT[filteredCount++] = arrVT[i];
+            }
+        }
+        n = filteredCount;
+    }
+    
+    // Vẽ nút lọc (Toggle Switch) giữa tiêu đề và bảng vật tư
+    Rectangle toggleRec = { (float)formX - 260.0f, 68.0f, 250.0f, 28.0f };
+    bool hoverToggle = CheckCollisionPointRec(GetMousePosition(), toggleRec) && !guiDialogActive;
+    DrawRectangleRounded(toggleRec, 0.2f, 4, ui.filterOnlyInStock ? COLOR_ACCENT : COLOR_TEXT_MUTED);
+    if (hoverToggle) {
+        DrawRectangleRoundedLines(toggleRec, 0.2f, 4, COLOR_PRIMARY);
+        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+            ui.filterOnlyInStock = !ui.filterOnlyInStock;
+            ui.pageVT = 0; // Reset trang hiện tại về 0
+        }
+    }
+    int textW = MeasureText(ui.filterOnlyInStock ? "Chỉ hiển thị còn hàng" : "Hiển thị tất cả", 18);
+    DrawText(ui.filterOnlyInStock ? "Chỉ hiển thị còn hàng" : "Hiển thị tất cả", toggleRec.x + (toggleRec.width - textW)/2, toggleRec.y + (toggleRec.height - 18)/2, 18, RAYWHITE);
     
     // Vẽ bảng vật tư
     drawTableMaterials(arrVT, n, ui, tableWidth);
@@ -1265,6 +1294,7 @@ void drawThongKeScreen(const DanhSachNhanvien &dsnv, UIState &ui) {
             ui.showDialog = true;
             strcpy(ui.dialogTitle, "Lỗi Nhập Ngày");
             strcpy(ui.dialogMsg, "Ngày Từ hoặc Ngày Đến nhập vào không hợp lệ!");
+            ui.hasFilteredTK = false;
         } else {
             Date fromD = { fd, fm, fy };
             Date toD = { td, tm, ty };
@@ -1273,6 +1303,7 @@ void drawThongKeScreen(const DanhSachNhanvien &dsnv, UIState &ui) {
                 ui.showDialog = true;
                 strcpy(ui.dialogTitle, "Lỗi Khoảng Ngày");
                 strcpy(ui.dialogMsg, "Ngày Từ phải nhỏ hơn hoặc bằng Ngày Đến!");
+                ui.hasFilteredTK = false;
             } else {
                 ui.tkInvoices.clear();
                 for (int i = 0; i < dsnv.n; i++) {
@@ -1291,6 +1322,7 @@ void drawThongKeScreen(const DanhSachNhanvien &dsnv, UIState &ui) {
                     }
                 }
                 ui.pageTK = 0;
+                ui.hasFilteredTK = true;
             }
         }
     }
@@ -1334,8 +1366,8 @@ void drawThongKeScreen(const DanhSachNhanvien &dsnv, UIState &ui) {
     if (endIdx > totalItems) endIdx = totalItems;
     
     if (totalItems == 0) {
-        // Chú thích nghiệp vụ: Kiểm tra xem người dùng đã thực hiện thao tác Lọc chưa bằng cách kiểm tra xem ô nhập ngày có trống không
-        if (ui.fromDay[0] == '\0' && ui.toDay[0] == '\0') {
+        // Chú thích nghiệp vụ: Kiểm tra xem người dùng đã thực hiện thao tác Lọc chưa bằng cách kiểm tra flag ui.hasFilteredTK
+        if (!ui.hasFilteredTK) {
             DrawText("Điền khoảng thời gian ở trên và bấm 'Lọc Thống Kê' để xem báo cáo.", 310 + tableWidth/2 - 300, startY + 110, 20, COLOR_TEXT_MUTED);
         } else {
             DrawText("Không có hóa đơn nào phát sinh trong khoảng thời gian này.", 310 + tableWidth/2 - 260, startY + 110, 20, RED);
